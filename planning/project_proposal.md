@@ -29,7 +29,7 @@ The product is a coordinated swarm of Claude agents (Leader + attack subagents) 
 3. Launch a run. The Leader probes → plans → spawns parallel attack agents → reports.
 4. Watch live agent traces in the dashboard, hit the kill switch any time, then read a founder-readable report at the end — validated findings only, with reproduction steps and concrete remediation.
 
-The differentiator is **proof over noise**: every reported finding is one an agent actually exploited in a controlled way. No "potential issue" padding. That is what lets a non-security-expert act on the report without needing to triage.
+The differentiator is **proof over noise**. A normal scanner flags "potential" issues and leaves the sorting to you. Our agents do the sorting themselves — when one suspects a vulnerability, it attempts the exploit; only confirmed breaches reach the report, each with the payload, response, and reproduction steps. A non-security-expert can act on the report directly, without triaging.
 
 ## Expected Features List
 
@@ -37,6 +37,10 @@ Grouped by the v1 product surface. Detailed mechanics live in the PRD; this is t
 
 **Engagement & orchestration**
 - Authorized run lifecycle: PROBE → PLAN → SWARM → REPORT, driven by the Leader agent.
+    - PROBE: reconnaissance only — map URLs, forms, APIs, tech stack. No attacks.
+    - PLAN: Leader reviews the probe and decides which subagents to spawn against which surfaces.
+    - SWARM: parallel attack subagents execute, one per surface, with Leader spawning follow-ups when findings chain.
+    - REPORT: aggregate validated exploits into the founder-readable report.
 - Subagent coordination framework — Leader (Opus) dispatches one focused attack agent (Sonnet) per surface, can spawn follow-ups when one finding unlocks another, and aggregates outcomes. Design TBD between a custom FastAPI orchestrator vs. a thinner harness over the Claude Agent SDK; whatever we pick must make leader→subagent message passing, tool-call routing, and trace emission first-class.
 - Live agent traces streamed to the dashboard (per-agent action log, tool calls, decisions, breach markers).
 - Kill switch that halts an entire run within seconds.
