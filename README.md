@@ -35,25 +35,27 @@ The AI *is* the product. The Leader agent autonomously plans a multi-step attack
 
 ### Architecture
 
+> **Stack decisions updated 2026-07-09. [Notion](https://app.notion.com/p/38e0ffa387f680b49700cd7b77050810) is the source of truth for the current stack; this table reflects it.**
+
 | Layer | Choice | Role |
 |-------|--------|------|
-| Frontend | React / Next.js (TypeScript) | Real-time dashboard, agent graph, live trace view |
-| Edge / BFF | Node + Express (thin) | Serves the app, auth/session, proxies to Python, relays the live trace stream — **zero domain logic** |
-| Core services | Python + FastAPI | Agent orchestration, tool calls, sandbox/policy, reporting — where the value lives |
+| Frontend | React (TypeScript) | Real-time dashboard, agent graph, live trace view |
+| Web / API | Node + Express (TypeScript) | Serves the app, auth/session, the REST API the frontend calls, and relays the live trace stream. Part of the PERN web tier alongside React and the Supabase Postgres. |
+| Agents / swarm | Python on EC2 | Agent orchestration, tool calls, sandbox/policy, reporting — runs separately from the web tier and shares the Supabase Postgres. Interface between the two tiers is TBD. |
 | AI | Claude Opus (Leader) + Claude Sonnet (swarm) | Frontier agentic reasoning, planning, and tool-use |
 | Tools | MCP server per tool (containerized) | Isolation + extensibility |
-| Data | Postgres + pgvector | Relational data and the agents' learned-behavior vector store |
+| Data + Auth | Supabase (managed Postgres) + Supabase Auth | Relational data plus built-in login with Row Level Security. Chosen over Better Auth for simpler setup and automatic per-user data scoping. `pgvector` (agents' learned-behavior vector store) is deferred to v1. |
 
-**Safety model:** every run is scoped to user-verified domains (DNS/hosted-file ownership proof), routed through a single controlled doorway that enforces a scope allow-list, rate limiting, egress control, destructive-action gating, a full audit log, and a kill switch.
+**Safety model:** every run is scoped to user-verified domains (DNS TXT ownership proof for v0), routed through a single controlled doorway that enforces a scope allow-list, rate limiting, egress control, destructive-action gating, a full audit log, and a kill switch. Because the Python agents connect to the database directly (not as a logged-in Supabase user), Row Level Security does not cover them — they are given a restricted database account, never the service-role master key.
 
 Deployment Website: _TBD (not yet deployed)_
 
 ### Open-source libraries used
 
-- [React](https://react.dev/) / [Next.js](https://nextjs.org/) — frontend dashboard and live trace view
-- [Express](https://expressjs.com/) — thin Node BFF (auth, session, proxy, SSE relay)
-- [FastAPI](https://fastapi.tiangolo.com/) — Python core services (agents, sandbox, reporting)
-- [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) — relational store and vector store
+- [React](https://react.dev/) — frontend dashboard and live trace view
+- [Express](https://expressjs.com/) — Node web tier (auth, session, REST API, SSE relay)
+- [Supabase](https://supabase.com/) — managed Postgres, built-in auth (Row Level Security), and storage
+- [PostgreSQL](https://www.postgresql.org/) — relational store (managed by Supabase); [pgvector](https://github.com/pgvector/pgvector) vector store deferred to v1
 - [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) — tool-server layer
 - [Nmap](https://nmap.org/) — network/port discovery (open source)
 - [Nikto](https://github.com/sullo/nikto) — web server scanning (open source)

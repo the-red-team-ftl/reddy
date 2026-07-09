@@ -2,6 +2,8 @@
 
 Pod Members: **Anny Dang, Eric Wong, Muhammed Enes Bilek**
 
+> **Note (updated 2026-07-09):** The stack, data model, and endpoints below were revised after this deliverable was first submitted to match the current [Notion source of truth](https://app.notion.com/p/38e0ffa387f680b49700cd7b77050810) ([Data Model v0](https://app.notion.com/p/3960ffa387f681a49b74e15a0864006c), [API Contracts v0](https://app.notion.com/p/3970ffa387f681cbbac3dee75d04aaad)). Key changes: Supabase (managed Postgres) + Supabase Auth replace self-hosted Postgres and Better Auth; the Node/Express tier owns the REST API (PERN web tier) rather than being a thin proxy to FastAPI; `pgvector` self-learning is deferred to v1.
+
 ## Problem Statement and Description
 
 **Problem:** Software is shipped faster than ever. Solo founders can launch a web app in a weekend, but security tooling remains priced and paced for enterprises. Founders must choose between shallow $200/month scanners that flag false positives, spending 300 hours learning to pentest themselves, or hiring a human red team for $20k. There is a gap for founders who need rigorous, exploit-validated security testing at an affordable price.
@@ -33,29 +35,38 @@ Pod Members: **Anny Dang, Eric Wong, Muhammed Enes Bilek**
 
 ## Pages/Screens
 
-1. **Landing and Authentication Page**: Marketing copy, user sign-up, and sign-in via OAuth or Better Auth.
+1. **Landing and Authentication Page**: Marketing copy, user sign-up, and sign-in via Supabase Auth.
 2. **Dashboard Home**: Greeting, Website title, last risk score, past tests dropdown, and a button to initiate a new test.
-3. **Pentest Sequence Modal/Page**: Form to input a target URL, instructions for verification (DNS/file), and policy configuration.
-4. **Active Pentest Traces Page ("Camera")**: Real-time view streaming data from agents to the frontend using Laminar Signals / SSE. Includes a kill switch button.
+3. **Pentest Sequence Modal/Page**: Form to input a target URL, instructions for verification (DNS TXT), and policy configuration.
+4. **Active Pentest Traces Page ("Camera")**: Real-time view streaming data from agents to the frontend using SSE. Includes a kill switch button.
 5. **Expert Report Page**: The final deliverable showing conclusions from the Swarm Leader, validated exploits, risk scores, step-by-step reproduction, and markdown/PDF export buttons.
 6. **User Profile Page**: Interface to manage account details and subscription.
 
 ## Data Model
 
-* **Users**: `id`, `email`, `auth_provider`, `created_at`
-* **Targets**: `id`, `user_id`, `domain_url`, `verification_status`, `verification_method`, `dns_record_value`
-* **Tests**: `id`, `target_id`, `status` (running/halted/completed), `policy_settings` (JSON), `start_time`, `end_time`, `risk_score`
-* **Findings**: `id`, `test_id`, `severity`, `title`, `description`, `reproduction_steps`, `payload_data`, `remediation`
-* **Agent Traces**: `id`, `test_id`, `agent_role`, `action_type`, `timestamp`, `log_content`, `embedding` (pgvector for self-learning/recall)
+Matches [Data Model v0](https://app.notion.com/p/3960ffa387f681a49b74e15a0864006c) (Supabase Postgres). Field names/types are kept 1:1 with that page.
+
+* **users**: `id` (uuid PK), `email` (text), `auth_provider` (text), `created_at` (timestamptz)
+* **targets**: `id` (uuid PK), `user_id` (uuid FK → users), `base_url` (text), `label` (text), `verification_token` (text), `verified_at` (timestamptz, null = not yet verified). Verification is DNS TXT for v0.
+* **tests**: `id` (uuid PK), `target_id` (uuid FK → targets), `status` (enum: running/completed/halted), `policy` (jsonb — rate ceiling, destructive toggle, max duration), `risk_score` (int, null until the run finishes), `started_at` (timestamptz), `ended_at` (timestamptz)
+* **findings**: `id` (uuid PK), `test_id` (uuid FK → tests), `severity` (enum: info/low/medium/high/critical), `title` (text), `description` (text), `reproduction_steps` (text), `remediation` (text), `evidence` (jsonb — payload + request/response that proved it)
+* **traces**: `id` (uuid PK), `test_id` (uuid FK → tests), `agent` (text), `seq` (bigint, monotonic per test for ordered replay/reconnect), `event_type` (enum: thought/tool_call/result/breach/error), `summary` (text), `detail` (jsonb)
+
+*Deferred to later versions (additive): `category` on findings (until the 2–3 v0 attack vectors are picked), `pgvector` embeddings on traces for self-learning (v1), attack-chain tables (v1).*
 
 ## Endpoints
 
-*(Note: These represent the Node/Express BFF layer endpoints that the React frontend calls. The BFF proxies domain logic to the Python/FastAPI core).*
+Matches [API Contracts v0](https://app.notion.com/p/3970ffa387f681cbbac3dee75d04aaad). These are the Node/Express web-tier endpoints the React frontend calls. Auth is a Supabase session cookie; the server derives `user_id` from the session and never accepts it in the body. Base path is `/v1`.
 
-* `POST /api/auth/login` : Handle user authentication and session management.
-* `GET /api/tests` : Fetch the user's past tests and overall risk score for the dashboard.
-* `POST /api/targets/verify` : Trigger backend (dig/nslookup/DNS API) to check for domain ownership.
-* `POST /api/tests/start` : Initiate a new pentest run and spawn the Python orchestrator.
-* `POST /api/tests/:id/halt` : Trigger the kill switch to immediately terminate all agent processes.
-* `GET /api/tests/:id/stream` : SSE endpoint relaying live agent traces from Python to the frontend.
-* `GET /api/tests/:id/report` : Fetch the aggregated and validated vulnerability report.
+* `GET /auth/session` : Return the current user, or 401 if no session.
+* `POST /auth/signout` : Clear the session cookie (204).
+* `POST /targets` : Create a new (unverified) target; response includes the DNS TXT value to publish.
+* `GET /targets`, `GET /targets/{id}` : List / fetch the caller's targets (owner-scoped by session).
+* `POST /targets/{id}/verify` : Synchronously perform a DNS TXT lookup and, if the token matches, set `verified_at`. Idempotent.
+* `POST /tests` : Start a new run (requires a verified target); accepts `policy` (rate ceiling, destructive toggle, max duration).
+* `GET /tests/{id}`, `GET /tests?target_id={id}` : Fetch a run / list runs for a target (powers the "past tests" dropdown).
+* `POST /tests/{id}/halt` : Kill switch — request a graceful halt (idempotent, 202).
+* `GET /tests/{id}/traces/stream` : SSE endpoint relaying live agent traces; supports `Last-Event-ID` for reconnect.
+* `GET /tests/{id}/traces` : Paged historical trace view for the results page.
+* `GET /tests/{id}/findings`, `GET /findings/{id}` : Read validated findings (no mutation endpoints in v0).
+* `GET /tests/{id}/export?format=markdown|pdf` : Single-call report bundle for the "Export Report" button.
