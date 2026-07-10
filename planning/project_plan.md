@@ -223,6 +223,18 @@ All endpoints are served by the Node/Express web tier (`reddy-backend`). Auth is
 | Placed AI summary generation on the backend, not frontend | Sprint 1 | Architecture | API key security; backend already has DB access to findings. Matches the pattern from Week 4 capstone. |
 | Cache AI summaries in a `test_summaries` column or table | Sprint 1 | Data model | Avoid re-calling Claude on every page load. Summaries are deterministic for a given set of findings. |
 
+## Work Plan
+
+Sprint planning and task tracking live on our Linear board:
+
+[View Project Board on Linear](https://linear.app/reddyftl/team/RED/active)
+
+Milestones are also mirrored as GitHub Milestones on the [reddy repo](https://github.com/the-red-team-ftl/reddy/milestones):
+- **Sprint 1** (Jul 11-18): Core infrastructure -- targets CRUD, DNS verification, test creation, frontend auth + dashboard
+- **Sprint 2** (Jul 18-25): MVP -- kill switch, SSE traces, findings, report page, agent integration
+- **Sprint 3** (Jul 25 - Aug 1): AI summary, PDF export, rate limiting, error handling
+- **Sprint 4** (Aug 1-8): E2E testing, polish, demo prep
+
 ## Decisions Log
 
 | Decision | Context | Alternatives Considered | Tradeoffs |
