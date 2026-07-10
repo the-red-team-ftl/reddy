@@ -39,8 +39,8 @@ The AI *is* the product. The Leader agent autonomously plans a multi-step attack
 
 | Layer | Choice | Role |
 |-------|--------|------|
-| Frontend | React (TypeScript) | Real-time dashboard, agent graph, live trace view |
-| Web / API | Node + Express (TypeScript) | Serves the app, auth/session, the REST API the frontend calls, and relays the live trace stream. Part of the PERN web tier alongside React and the Supabase Postgres. |
+| Frontend | React (JavaScript) | Real-time dashboard, agent graph, live trace view |
+| Web / API | Node + Express (JavaScript) | Serves the app, auth/session, the REST API the frontend calls, and relays the live trace stream. Part of the PERN web tier alongside React and the Supabase Postgres. |
 | Agents / swarm | Python on EC2 | Agent orchestration, tool calls, sandbox/policy, reporting — runs separately from the web tier and shares the Supabase Postgres. Interface between the two tiers is TBD. |
 | AI | Claude Opus (Leader) + Claude Sonnet (swarm) | Frontier agentic reasoning, planning, and tool-use |
 | Tools | MCP server per tool (containerized) | Isolation + extensibility |
