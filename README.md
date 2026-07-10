@@ -11,7 +11,7 @@ Mentors Names: **Adam Ambrose, Dallas Dias, Lakshmi Subramanian**
 Project Code Repository Links
 
 * Frontend Repo Link — _TBD (to be added once the repo is created)_
-* Backend Repo Link — _TBD (to be added once the repo is created)_
+* [Backend Repo](https://github.com/the-red-team-ftl/reddy-backend) — Express 5 API server, Supabase migrations, Prisma query client
 
 ## Project Overview
 
@@ -49,6 +49,16 @@ The AI *is* the product. The Leader agent autonomously plans a multi-step attack
 **Safety model:** every run is scoped to user-verified domains (DNS TXT ownership proof for v0), routed through a single controlled doorway that enforces a scope allow-list, rate limiting, egress control, destructive-action gating, a full audit log, and a kill switch. Because the Python agents connect to the database directly (not as a logged-in Supabase user), Row Level Security does not cover them — they are given a restricted database account, never the service-role master key.
 
 Deployment Website: _TBD (not yet deployed)_
+
+### Current status (2026-07-10)
+
+**Backend infrastructure complete:**
+- Express 5 server scaffold (health check, CORS, helmet, graceful shutdown)
+- GitHub OAuth via Supabase Auth (PKCE flow, httpOnly session cookies)
+- Database: 5 tables with RLS, column-level authz, restricted agent role
+- API route stubs for all v0 endpoints (targets, tests, traces, findings, export)
+
+**Next:** implement route business logic (targets CRUD + DNS verification first).
 
 ### Open-source libraries used
 
